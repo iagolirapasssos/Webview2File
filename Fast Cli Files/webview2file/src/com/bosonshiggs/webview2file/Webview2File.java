@@ -71,114 +71,120 @@ public class Webview2File extends AndroidNonvisibleComponent {
 
     @SimpleFunction(description = "Converts the content of the WebView to an image and saves it to the gallery.")
 	public void ConvertToImage(AndroidViewComponent webViewer, String dirName) {
-		try {
-		    WebView webView = (WebView) webViewer.getView();
+		WebView webView = (WebView) webViewer.getView();
 
-		    // Define o tamanho do bitmap baseado no tamanho do WebView
-		    int width = webView.getWidth();
-		    int height = webView.getContentHeight();
-		    if (height <= 0 || width <= 0) {
-		        OnError("WebView dimensions are invalid.");
-		        return;
-		    }
-
-		    Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-		    Canvas canvas = new Canvas(bitmap);
-		    webView.draw(canvas);
-
-		    String fileName = "WebViewCapture_" + System.currentTimeMillis() + ".png";
-		    String relativePath = "Pictures/" + dirName;
-
-		    ContentResolver resolver = context.getContentResolver();
-		    ContentValues values = new ContentValues();
-		    values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
-		    values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
-		    values.put(MediaStore.Images.Media.RELATIVE_PATH, relativePath);
-
-		    Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-		    if (imageUri != null) {
-		        try (OutputStream outputStream = resolver.openOutputStream(imageUri)) {
-		            if (outputStream != null) {
-		                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
-		            }
+		container.$form().runOnUiThread(() -> {
+		    try {
+		        // Defina o tamanho do bitmap baseado no tamanho do WebView
+		        int width = webView.getWidth();
+		        int height = webView.getContentHeight();
+		        if (height <= 0 || width <= 0) {
+		            OnError("WebView dimensions are invalid.");
+		            return;
 		        }
 
-		        // Atualiza a galeria imediatamente
-		        MediaScannerConnection.scanFile(
-		            context,
-		            new String[]{relativePath + "/" + fileName}, // Caminho do arquivo
-		            null, // Tipo MIME é detectado automaticamente
-		            (path, uri) -> OnImageSaved(uri != null ? uri.toString() : "null")
-		        );
-		    } else {
-		        OnError("Failed to save image to gallery.");
+		        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+		        Canvas canvas = new Canvas(bitmap);
+		        webView.draw(canvas);
+
+		        String fileName = "WebViewCapture_" + System.currentTimeMillis() + ".png";
+		        String relativePath = "Pictures/" + dirName;
+
+		        ContentResolver resolver = context.getContentResolver();
+		        ContentValues values = new ContentValues();
+		        values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+		        values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+		        values.put(MediaStore.Images.Media.RELATIVE_PATH, relativePath);
+
+		        Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+		        if (imageUri != null) {
+		            try (OutputStream outputStream = resolver.openOutputStream(imageUri)) {
+		                if (outputStream != null) {
+		                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+		                }
+		            }
+
+		            MediaScannerConnection.scanFile(
+		                context,
+		                new String[]{relativePath + "/" + fileName},
+		                null,
+		                (path, uri) -> OnImageSaved(uri != null ? uri.toString() : "null")
+		            );
+		        } else {
+		            OnError("Failed to save image to gallery.");
+		        }
+		    } catch (Exception e) {
+		        OnError("Error saving image: " + e.getMessage());
 		    }
-		} catch (Exception e) {
-		    OnError("Error saving image: " + e.getMessage());
-		}
+		});
 	}
+
 
 	@SimpleFunction(description = "Converts the content of all WebViews within a container to images and saves them to the gallery.")
 	public void ConvertContainerToImages(AndroidViewComponent layout, String dirName) {
-		try {
-		    ViewGroup containerView = (ViewGroup) layout.getView();
-		    boolean imageGenerated = false;
+		ViewGroup containerView = (ViewGroup) layout.getView();
 
-		    for (int i = 0; i < containerView.getChildCount(); i++) {
-		        View childView = containerView.getChildAt(i);
-		        if (childView instanceof WebView) {
-		            WebView webView = (WebView) childView;
+		container.$form().runOnUiThread(() -> {
+		    try {
+		        boolean imageGenerated = false;
 
-		            int width = webView.getWidth();
-		            int height = webView.getContentHeight();
-		            if (height <= 0 || width <= 0) {
-		                OnError("WebView dimensions are invalid for view at index " + i);
-		                continue;
-		            }
+		        for (int i = 0; i < containerView.getChildCount(); i++) {
+		            View childView = containerView.getChildAt(i);
+		            if (childView instanceof WebView) {
+		                WebView webView = (WebView) childView;
 
-		            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-		            Canvas canvas = new Canvas(bitmap);
-		            webView.draw(canvas);
-
-		            String fileName = "WebViewCapture_" + i + "_" + System.currentTimeMillis() + ".png";
-		            String relativePath = "Pictures/" + dirName;
-
-		            ContentResolver resolver = context.getContentResolver();
-		            ContentValues values = new ContentValues();
-		            values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
-		            values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
-		            values.put(MediaStore.Images.Media.RELATIVE_PATH, relativePath);
-
-		            Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-		            if (imageUri != null) {
-		                try (OutputStream outputStream = resolver.openOutputStream(imageUri)) {
-		                    if (outputStream != null) {
-		                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
-		                    }
+		                int width = webView.getWidth();
+		                int height = webView.getContentHeight();
+		                if (height <= 0 || width <= 0) {
+		                    OnError("WebView dimensions are invalid for view at index " + i);
+		                    continue;
 		                }
 
-		                MediaScannerConnection.scanFile(
-		                    context,
-		                    new String[]{relativePath + "/" + fileName},
-		                    null,
-		                    (path, uri) -> OnImageSaved(uri != null ? uri.toString() : "null")
-		                );
-		                imageGenerated = true;
-		            } else {
-		                OnError("Failed to save image for WebView at index " + i);
+		                Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+		                Canvas canvas = new Canvas(bitmap);
+		                webView.draw(canvas);
+
+		                String fileName = "WebViewCapture_" + i + "_" + System.currentTimeMillis() + ".png";
+		                String relativePath = "Pictures/" + dirName;
+
+		                ContentResolver resolver = context.getContentResolver();
+		                ContentValues values = new ContentValues();
+		                values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+		                values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+		                values.put(MediaStore.Images.Media.RELATIVE_PATH, relativePath);
+
+		                Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+		                if (imageUri != null) {
+		                    try (OutputStream outputStream = resolver.openOutputStream(imageUri)) {
+		                        if (outputStream != null) {
+		                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+		                        }
+		                    }
+
+		                    MediaScannerConnection.scanFile(
+		                        context,
+		                        new String[]{relativePath + "/" + fileName},
+		                        null,
+		                        (path, uri) -> OnImageSaved(uri != null ? uri.toString() : "null")
+		                    );
+		                    imageGenerated = true;
+		                } else {
+		                    OnError("Failed to save image for WebView at index " + i);
+		                }
 		            }
 		        }
-		    }
 
-		    if (imageGenerated) {
-		        OnImageGenerated("Images generated and saved to gallery for all WebViews in the container.");
-		    } else {
-		        OnError("No WebView found in the container.");
+		        if (imageGenerated) {
+		            OnImageGenerated("Images generated and saved to gallery for all WebViews in the container.");
+		        } else {
+		            OnError("No WebView found in the container.");
+		        }
+		    } catch (Exception e) {
+		        OnError("Error converting container to images: " + e.getMessage());
 		    }
-		} catch (Exception e) {
-		    OnError("Error converting container to images: " + e.getMessage());
-		}
+		});
 	}
+
 
 	
 	@SimpleFunction(description = "Converts the content of all WebViews within a container to a PDF file.")
